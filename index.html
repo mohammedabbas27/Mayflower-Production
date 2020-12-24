@@ -1,0 +1,610 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=no"/><meta name="theme-color" content="#000000"/><link rel="manifest" href="./manifest.json"/><title>EOTSS</title><link href="./static/css/2.f1c8f32c.chunk.css" rel="stylesheet"><link href="./static/css/main.966a1d37.chunk.css" rel="stylesheet"></head><body><noscript>You need to enable JavaScript to run this app.</noscript><div id="root"></div><script src="https://kit.fontawesome.com/93232b8b86.js" crossorigin="anonymous"></script><link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/><link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/><script src="https://cdn.jsdelivr.net/npm/apexcharts"></script><link href="https://fonts.googleapis.com/css2?family=Roboto&family=Ubuntu&display=swap" rel="stylesheet"/><script src="https://code.jquery.com/jquery-3.5.1.min.js" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script><script type="text/javascript">// $( "#widget" ).resizable({ ghost: true });
+
+      let fontSize = 16;
+      let chatBotOpened = false;
+      let micOn = false;
+
+      document.addEventListener("DOMContentLoaded", function(event) {
+        document.querySelector("#creya_logo").style.transform =
+          "translate(-20%)";
+        setTimeout(() => {
+          document.querySelector("#creya_logo").style.transform =
+            "translate(20%)";
+        }, 400);
+        msg = "I couldn't get that. Let' try something else!";
+
+        function myFunction() {
+          var popup = document.getElementById("myPopup");
+          popup.classList.toggle("show");
+        }
+
+        //Voice Recognition
+
+        //Toggle the mic on and off based on the user input
+        function toggleMic() {
+          $("#mic-btn-on").toggleClass("hide");
+          $("#mic-btn-off").toggleClass("hide");
+        }
+
+        try {
+          window.SpeechRecognition =
+            window.webkitSpeechRecognition ||
+            window.mozSpeechRecognition ||
+            window.msSpeechRecognition ||
+            window.oSpeechRecognition ||
+            window.SpeechRecognition;
+
+          const recognition = new SpeechRecognition();
+          recognition.interimResults = true;
+
+          //Event listener for processing the result of the voice recognition
+          recognition.addEventListener("result", e => {
+            const transcript = Array.from(e.results)
+              .map(result => result[0])
+              .map(result => result.transcript)
+              .join("");
+
+            $(".usrInput").val(transcript);
+          });
+
+          //Send the message of the user upon the end of voice recognition
+          recognition.addEventListener("end", function() {
+            myFunction();
+            toggleMic();
+            sendMessage();
+            micOn = false;
+          });
+
+          // Turn of the voice recognition
+          $("#mic-btn-on").click(function() {
+            micOn = false;
+            myFunction();
+            toggleMic();
+            recognition.stop();
+          });
+
+          // Turn on the voice recognition
+          $("#mic-btn-off").click(function() {
+            micOn = true;
+            myFunction();
+            toggleMic();
+            recognition.start();
+          });
+
+          //Stop listening the user
+          function stopListening() {
+            recognition.stop();
+          }
+        } catch (exception) {
+          $("#mic-btn-off").toggleClass("hide");
+        }
+
+        let minimumFontSize = 12;
+        let maximumFontSize = 22;
+
+        document
+          .querySelector("#increase-font")
+          .addEventListener("click", e => {
+            if (fontSize < maximumFontSize) {
+              fontSize += 2;
+              updateFontSize();
+            }
+          });
+
+        document
+          .querySelector("#decrease-font")
+          .addEventListener("click", e => {
+            if (fontSize > minimumFontSize) {
+              fontSize -= 2;
+              updateFontSize();
+            }
+          });
+
+        function updateFontSize() {
+          document
+            .querySelectorAll(".botMsg ")
+            .forEach(el => el.setAttribute("style", `font-size:${fontSize}px`));
+          document
+            .querySelectorAll(".userMsg ")
+            .forEach(el => el.setAttribute("style", `font-size:${fontSize}px`));
+          // document.querySelectorAll(".settings ").forEach(el => el.setAttribute('style', `font-size:${fontSize}px`));
+
+          // updateFontSettings();
+        }
+
+        function updateFontSettings() {
+          if (fontSize == minimumFontSize) {
+            document.querySelector("#decrease-font").classList.add("hide");
+          } else {
+            document.querySelector("#decrease-font").classList.remove("hide");
+          }
+
+          if (fontSize == maximumFontSize) {
+            document.querySelector("#increase-font").classList.add("hide");
+          } else {
+            document.querySelector("#increase-font").classList.remove("hide");
+          }
+        }
+
+        var isClosed = false;
+        var sessionStarted = false;
+
+        var role = "admin>";
+        var name = "there";
+        var tenant_id = name + "|" + role;
+        var rasa_endpoint = document.getElementById("rasa_endpoint").value;
+        var activateTiny = false;
+
+        function sendData(e) {
+          var text = $(".usrInput").val();
+          if (text == "" || $.trim(text) == "") {
+            e.preventDefault();
+            return false;
+          } else {
+            $(".usrInput").blur();
+            setUserResponse(text);
+            send(text, "message");
+            e.preventDefault();
+            return false;
+          }
+        }
+
+        //---------------------------------- on input/text enter -------------------------------------------
+        $(".usrInput").on("keyup keypress", function(e) {
+          var keyCode = e.keyCode || e.which;
+          if (keyCode === 13) {
+            sendData(e);
+          }
+        });
+
+        //------------------------------------- Set user response-------------------------------------------
+        function setUserResponse(val) {
+          //disable the user input
+          document.querySelector(".usrInput").disabled = true;
+
+          var UserResponse =
+            '<p class="userMsg">' + val + ' </p><div class="clearfix"></div>';
+          $(UserResponse)
+            .appendTo(".testing")
+            .show("slow");
+          $(".usrInput").val("");
+          scrollToBottomOfResults();
+          $(".suggestions").remove();
+          noUserInput = false;
+          var BotResponse =
+            '<div class="botMsg" id="typing" style="border:0px !important;background:transparent !important;box-shadow:none !important">' +
+            `<div id="wave">
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+                </div>` +
+            '</div><div class="clearfix"></div>';
+          $(BotResponse)
+            .appendTo(".testing")
+            .hide()
+            .fadeIn(1000);
+        }
+
+        //---------------------------------- Scroll to the bottom of the chats-------------------------------
+        function scrollToBottomOfResults() {
+          var terminalResultsDiv = document.getElementById("chats");
+          terminalResultsDiv.scrollTop = terminalResultsDiv.scrollHeight;
+        }
+
+        //---------------------------------- Send Message back to the rasa server----------------------------
+        function send(message, intent) {
+          var dataTobeSent = null;
+          if (intent == "action") {
+            dataTobeSent = JSON.stringify({
+              action: message,
+              sender: tenant_id
+            });
+          } else {
+            dataTobeSent = JSON.stringify({
+              message: message,
+              sender: tenant_id
+            });
+          }
+
+          $.ajax({
+            url: "https://chatbot.xfact.io:8080/webhooks/rest/webhook",
+            type: "POST",
+            contentType: "application/json",
+            data: dataTobeSent,
+            success: function(data, textStatus) {
+              setBotResponse(data);
+              enableUserInput();
+            },
+            error: function(errorMessage) {
+              setBotResponse("");
+              enableUserInput();
+            }
+          });
+        }
+
+        function enableUserInput() {
+          setTimeout(function() {
+            document.querySelector(".usrInput").disabled = false;
+            $(".usrInput").focus();
+          }, 1500);
+        }
+
+        //------------------------------------ Set bot response -------------------------------------
+        function setBotResponse(val) {
+          setTimeout(function() {
+            $("#typing").remove();
+          }, 500);
+
+          setTimeout(function() {
+            if (val.length < 1) {
+              //if there is no response from Rasa
+              msg = "I couldn't get that. Let' try something else!";
+              var BotResponse =
+                '<p class="botMsg">' + msg + '</p><div class="clearfix"></div>';
+              $(BotResponse)
+                .appendTo(".testing")
+                .hide()
+                .fadeIn(500);
+            } else {
+              //if we get response from Rasa
+              for (i = 0; i < val.length; i++) {
+                //check if there is text message
+                if (val[i].hasOwnProperty("custom")) {
+                  data = JSON.parse(val[i].custom);
+                  var type = Object.keys(data)[0];
+                  if (type == "list") {
+                    var count = 0;
+                    var length = data.list.length - 1;
+                    var markup = `<div class="botMsg"><table><tr><th>Product Name</th><th>Facility ID</th><th>ATP</th><th>QOH</th></tr>`;
+                    data.list.forEach(row => {
+                      if (count == length) {
+                        markup += `<tr><td style="font-weight:bold;">${
+                          row.product_name
+                        }</td><td style="font-weight:bold;">${
+                          row.facility_id
+                        }</td><td style="font-weight:bold;" class="numerical">${
+                          row.atp
+                        }</td><td style="text-align:right;font-weight:bold;">${
+                          row.qoh
+                        }</td></tr>`;
+                      } else {
+                        markup += `<tr><td>${row.product_name}</td><td>${
+                          row.facility_id
+                        }</td><td class="numerical">${
+                          row.atp
+                        }</td><td style="text-align:right;">${
+                          row.qoh
+                        }</td></tr>`;
+                      }
+                      count += 1;
+                    });
+                    markup += `</table></div><div class="clearfix"></div><br/>`;
+                    $(markup)
+                      .appendTo(".chats")
+                      .hide()
+                      .fadeIn(1000);
+                  } else if (type == "str") {
+                    data = data.str;
+                    const date = new Date(data.date);
+                    const formattedDate = date
+                      .toLocaleDateString("en-GB", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric"
+                      })
+                      .replace(/ /g, "-");
+                    var BotResponse =
+                      '<p class="botMsg">' +
+                      `As on ${formattedDate} the customer: ${
+                        data.party_name
+                      } has to pay <span style="font-weight:bold;">${
+                        data.currency
+                      } ${data.outstanding_amount}</span>.` +
+                      '</p><div class="clearfix"></div>';
+                    $(BotResponse)
+                      .appendTo(".testing")
+                      .hide()
+                      .fadeIn(500);
+                  } else if (type == "buttons") {
+                    addSuggestion(data.buttons, "list");
+                  }
+                }
+
+                if (val[i].hasOwnProperty("text")) {
+                  let firstMessage = document.querySelector("#testing")
+                    .children[0];
+                  if (firstMessage) {
+                    if (firstMessage.textContent == val[i]) {
+                      return;
+                    }
+                  }
+                  let inputStr = val[i].text.split(" ");
+                  if (val[i].text.includes("https")) {
+                    let markup = '<p class="botMsg">';
+                    let delimeter = "";
+                    inputStr.forEach(str => {
+                      if (str.includes("https")) {
+                        delimeter = str;
+                      }
+                    });
+                    markup += val[i].text.split(delimeter)[0];
+                    markup += `<a href="${delimeter}" target="_blank">${
+                      val[i].text.split(delimeter)[1]
+                    }</a> `;
+                    markup += '</p><div class="clearfix"></div>';
+                    $(markup)
+                      .appendTo(".testing")
+                      .hide()
+                      .fadeIn(500);
+                  } else {
+                    var BotResponse =
+                      '<p class="botMsg">' +
+                      val[i].text +
+                      '</p><div class="clearfix"></div>';
+                    $(BotResponse)
+                      .appendTo(".testing")
+                      .hide()
+                      .fadeIn(500);
+                  }
+                }
+
+                //check if there is button message
+                if (val[i].hasOwnProperty("buttons")) {
+                  if (val[i].hasOwnProperty("custom")) {
+                    data = JSON.parse(val[i].custom);
+                    var type = Object.keys(data)[0];
+                  }
+                  addSuggestion(val[i].buttons, "menu");
+                }
+              }
+              scrollToBottomOfResults();
+            }
+          }, 500);
+        }
+
+        function getFormattedCurrency(val, currencyValue) {
+          let value = new Intl.NumberFormat("en-us", {
+            style: "currency",
+            currency: currencyValue,
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+          }).format(val);
+          return value;
+        }
+        function sendMessage() {
+          var text = $(".usrInput").val();
+          if (text == "" || $.trim(text) == "") {
+            return false;
+          } else {
+            $(".usrInput").blur();
+            setUserResponse(text);
+            send(text, "message");
+            return false;
+          }
+        }
+        function resetBot() {
+          $("#testing").empty();
+          $(".usrInput").val("");
+          send("/restart", "message");
+        }
+        // ------------------------------------------ Send Button -----------------------------------------------
+        $(".reset-bot").click(resetBot);
+
+        // ------------------------------------------ Toggle chatbot --------------------------------------------
+        $("#profile_div").click(function() {
+          if ($("#testing").text().length == 0 || !sessionStarted) {
+            sessionStarted = true;
+            isNewSession = true;
+            send("/session_start", "message");
+            firstMessageSent = true;
+            $("#testing").empty();
+            $(".usrInput").val("");
+          }
+          showChatBot();
+
+          $(".usrInput").focus();
+          scrollToBottomOfResults();
+        });
+        $("#profile_div_tiny").click(function() {
+          if ($("#chats").text().length == 0 || !sessionStarted) {
+            sessionStarted = true;
+            $("#testing").empty();
+            $(".usrInput").val("");
+            isNewSession = true;
+            send("/session_start", "message");
+            firstMessageSent = true;
+          }
+
+          showChatBot();
+          $(".usrInput").focus();
+          scrollToBottomOfResults();
+        });
+
+        $("#minimize").click(function() {
+          hideChatBot();
+        });
+
+        $("#tiny").click(function() {
+          if (activateTiny) {
+            activateTiny = false;
+          } else {
+            activateTiny = true;
+          }
+          $("#tiny").toggleClass("activateTiny");
+        });
+
+        function toggleCreyaLogo() {
+          if (activateTiny) {
+            activateTiny = false;
+          } else {
+            activateTiny = true;
+          }
+        }
+
+        $("#toggleCreya").click(function() {
+          document
+            .getElementById("creya_logo")
+            .setAttribute("style", "transform:translate(-200)");
+          document
+            .getElementById("creya_logo_min")
+            .setAttribute("style", "right:-5px !important");
+          toggleCreyaLogo();
+        });
+
+        $("#togglecreya_new").click(function() {
+          document
+            .getElementById("creya_logo")
+            .setAttribute("style", "transform:translate(20%)");
+          document
+            .getElementById("creya_logo_min")
+            .setAttribute("style", "right:-170px !important");
+          toggleCreyaLogo();
+        });
+
+        function handleSettings() {
+          document.querySelector(".settings").classList.toggle("show-settings");
+        }
+
+        $("#setting").click(handleSettings);
+
+        function hideChatBot() {
+          chatBotOpened = false;
+          document
+            .getElementById("widget")
+            .setAttribute("style", "transform:scale(0)");
+          handleChatBotHiding();
+        }
+        function showChatBot() {
+          chatBotOpened = true;
+          document
+            .getElementById("widget")
+            .setAttribute("style", "transform:scale(1)");
+          handleChatBotHiding();
+        }
+
+        $("#close").click(function() {
+          sessionStarted = false;
+          Math.floor(Math.random() * 10 + 1);
+          hideChatBot();
+          document.querySelector(".usrInput").disabled = true;
+          $("#testing").empty();
+          $(".usrInput").val("");
+
+          //check if mic is on
+          if (document.getElementsByClassName("show").length > 0) {
+            stopListening();
+          }
+        });
+
+        function handleChatBotHiding() {
+          if (activateTiny) $("#creya_logo_min").toggleClass("hide");
+          else $("#creya_logo").toggle();
+
+          if (document.getElementsByClassName("show").length > 0) {
+            stopListening();
+          }
+        }
+
+        // ------------------------------------------ Suggestions -----------------------------------------------
+
+        function addSuggestion(textToAdd, type) {
+          setTimeout(function() {
+            var suggestions = textToAdd;
+            var suggLength = textToAdd.length;
+            $(
+              ' <div class="singleCard"> <div class="button-suggestions suggestions"><div class="' +
+                type +
+                '"></div></div></diV>'
+            )
+              .appendTo(".testing")
+              .hide()
+              .fadeIn(1000);
+            // Loop through suggestions
+            for (i = 0; i < suggLength; i++) {
+              $(
+                '<div class="menuChips" data-payload=\'' +
+                  suggestions[i].payload +
+                  "'>" +
+                  suggestions[i].title +
+                  "</div>"
+              ).appendTo("." + type);
+            }
+            scrollToBottomOfResults();
+          }, 1000);
+        }
+
+        // on click of suggestions, get the value and send to rasa
+        $(document).on("click", ".menuChips", function() {
+          var text = this.innerText;
+          var payload = this.getAttribute("data-payload");
+          setUserResponse(text);
+          send(payload, "message");
+          $(".suggestions").remove(); //delete the suggestions
+        });
+
+        // define a handler
+        function doc_keyUp(e) {
+          // this would test for whichever key is 40 and the ctrl key at the same time
+          if (e.altKey && e.keyCode == 66) {
+            // call your function to do the thing
+            if (chatBotOpened) {
+              $("#minimize").click();
+            } else {
+              $("#profile_div").click();
+            }
+          }
+          if (e.altKey && e.keyCode == 77) {
+            // call your function to do the thing
+            if (chatBotOpened) {
+              $("#minimize").click();
+            }
+          }
+          if (e.altKey && e.keyCode == 67) {
+            // call your function to do the thing
+            if (chatBotOpened) {
+              $("#close").click();
+            }
+          }
+
+          if (e.altKey && e.keyCode == 13) {
+            // call your function to do the thing
+            sendData(e);
+          }
+          if (e.altKey && e.keyCode == 82) {
+            // call your function to do the thing
+            if (micOn) {
+              $("#mic-btn-on").click();
+            } else {
+              $("#mic-btn-off").click();
+            }
+          }
+
+          if (e.altKey && e.keyCode == 107) {
+            // call your function to do the thing
+            if (fontSize < maximumFontSize) {
+              fontSize += 2;
+              updateFontSize();
+            }
+          }
+
+          if (e.altKey && e.keyCode == 109) {
+            // call your function to do the thing
+            if (fontSize > minimumFontSize) {
+              fontSize -= 2;
+              updateFontSize();
+            }
+          }
+
+          if (e.altKey && e.keyCode == 73) {
+            // call your function to do the thing
+            handleSettings();
+          }
+
+          if (e.altKey && e.keyCode == 81) {
+            // call your function to do the thing
+            resetBot();
+          }
+        }
+        // register the handler
+        document.addEventListener("keyup", doc_keyUp, false);
+      });</script><script>!function(l){function e(e){for(var r,t,n=e[0],o=e[1],u=e[2],f=0,i=[];f<n.length;f++)t=n[f],p[t]&&i.push(p[t][0]),p[t]=0;for(r in o)Object.prototype.hasOwnProperty.call(o,r)&&(l[r]=o[r]);for(s&&s(e);i.length;)i.shift()();return c.push.apply(c,u||[]),a()}function a(){for(var e,r=0;r<c.length;r++){for(var t=c[r],n=!0,o=1;o<t.length;o++){var u=t[o];0!==p[u]&&(n=!1)}n&&(c.splice(r--,1),e=f(f.s=t[0]))}return e}var t={},p={1:0},c=[];function f(e){if(t[e])return t[e].exports;var r=t[e]={i:e,l:!1,exports:{}};return l[e].call(r.exports,r,r.exports,f),r.l=!0,r.exports}f.m=l,f.c=t,f.d=function(e,r,t){f.o(e,r)||Object.defineProperty(e,r,{enumerable:!0,get:t})},f.r=function(e){"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(e,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(e,"__esModule",{value:!0})},f.t=function(r,e){if(1&e&&(r=f(r)),8&e)return r;if(4&e&&"object"==typeof r&&r&&r.__esModule)return r;var t=Object.create(null);if(f.r(t),Object.defineProperty(t,"default",{enumerable:!0,value:r}),2&e&&"string"!=typeof r)for(var n in r)f.d(t,n,function(e){return r[e]}.bind(null,n));return t},f.n=function(e){var r=e&&e.__esModule?function(){return e.default}:function(){return e};return f.d(r,"a",r),r},f.o=function(e,r){return Object.prototype.hasOwnProperty.call(e,r)},f.p="./";var r=window.webpackJsonp=window.webpackJsonp||[],n=r.push.bind(r);r.push=e,r=r.slice();for(var o=0;o<r.length;o++)e(r[o]);var s=n;a()}([])</script><script src="./static/js/2.f11501bf.chunk.js"></script><script src="./static/js/main.bd265df6.chunk.js"></script></body></html>
